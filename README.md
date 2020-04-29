@@ -1,6 +1,12 @@
 # ObjectOrientedDocker
 Create Dockerfiles using PHP - a HORRENDOUS, hacky project which should not be used by anyone!
 
+# Use it
+```
+composer install
+php app.php
+```
+
 # Example:
 
 ```php

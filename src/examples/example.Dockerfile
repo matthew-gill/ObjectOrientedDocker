@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu as theexample
 
 RUN apt-get update && \
 	apt-get install

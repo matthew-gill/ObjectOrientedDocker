@@ -18,7 +18,8 @@ class ExampleDockerfile extends Dockerfile
 
     protected function configure(): void
     {
-        $this->from('ubuntu');
+        $this->from('ubuntu')
+            ->setStageName('theexample');
 
         $this->run('apt-get update', 'apt-get install')
             ->setMultiline()

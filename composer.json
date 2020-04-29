@@ -1,0 +1,16 @@
+{
+    "name": "mattgill/dockerparse",
+    "description": "Parse dockerfiles using oop",
+    "authors": [
+        {
+            "name": "Matt Gill",
+            "email": "matt.gill@mention-me.com"
+        }
+    ],
+    "require": {},
+    "autoload": {
+	    "classmap": [
+	      "src/"
+	    ]
+  }
+}

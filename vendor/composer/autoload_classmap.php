@@ -8,6 +8,6 @@ $baseDir = dirname($vendorDir);
 return array(
     'MattGill\\Custom\\LocalContainer' => $baseDir . '/src/custom/LocalContainer.php',
     'MattGill\\Dockerfile' => $baseDir . '/src/Dockerfile.php',
-    'MattGill\\Examples\\ApacheExampleDockerfile' => $baseDir . '/src/examples/ApacheExampleDockerfile.php',
+    'MattGill\\Examples\\ExampleDockerfile' => $baseDir . '/src/examples/ExampleDockerfile.php',
     'MattGill\\Model\\Layer' => $baseDir . '/src/Model/Layer.php',
 );

@@ -262,14 +262,16 @@ abstract class Dockerfile
     }
 
     /**
+     * @param bool $withComments
+     *
      * @return string
      */
-    public function compile(): string
+    public function compile(bool $withComments = false): string
     {
         $compiled = '';
 
         foreach ($this->layers as $layer) {
-            $compiled .= $layer->compile() . "\n" . "\n";
+            $compiled .= $layer->compile($withComments) . "\n" . "\n";
         }
 
         return $compiled;

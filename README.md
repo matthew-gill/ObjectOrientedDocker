@@ -39,7 +39,7 @@ Then
 
 ```php
 $example = new ExampleDockerfile();
-print_r($example->compile());
+print_r($example->compile(true));
 ````
 
 Will output
@@ -47,6 +47,7 @@ Will output
 ```dockerfile
 FROM ubuntu as theexample
 
+# Update to latest
 RUN apt-get update && \
 	apt-get install
 

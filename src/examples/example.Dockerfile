@@ -1,5 +1,6 @@
 FROM ubuntu as theexample
 
+# Update to latest
 RUN apt-get update && \
 	apt-get install
 

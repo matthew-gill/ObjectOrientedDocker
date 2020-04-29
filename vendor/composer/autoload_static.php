@@ -9,7 +9,7 @@ class ComposerStaticInita6064109bfc47acd742d381fab880d02
     public static $classMap = array (
         'MattGill\\Custom\\LocalContainer' => __DIR__ . '/../..' . '/src/custom/LocalContainer.php',
         'MattGill\\Dockerfile' => __DIR__ . '/../..' . '/src/Dockerfile.php',
-        'MattGill\\Examples\\ApacheExampleDockerfile' => __DIR__ . '/../..' . '/src/examples/ApacheExampleDockerfile.php',
+        'MattGill\\Examples\\ExampleDockerfile' => __DIR__ . '/../..' . '/src/examples/ExampleDockerfile.php',
         'MattGill\\Model\\Layer' => __DIR__ . '/../..' . '/src/Model/Layer.php',
     );
 

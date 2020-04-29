@@ -1,2 +1,4 @@
 src/custom/*
 !src/custom/README.md
+
+vendor

@@ -149,6 +149,17 @@ abstract class Dockerfile
     }
 
     /**
+     * @param string $class
+     * @param string ...$argument
+     *
+     * @return Layer
+     */
+    protected function copyFromOtherDockerfile(string $class, string ...$argument): Layer
+    {
+        return $this->copy('--from=' . Utils::sluggifyClassName($class), ...$argument);
+    }
+
+    /**
      * @see https://docs.docker.com/engine/reference/builder/#copy
      *
      * @param string ...$argument
@@ -383,6 +394,7 @@ abstract class Dockerfile
 
             $this->from("{$lineageStage->getFrom()} as {$lineageStage->getStageName()}");
 
+            /** @noinspection SlowArrayOperationsInLoopInspection */
             $this->layers = array_merge($this->layers, $lineageStage->getLayers());
 
         }

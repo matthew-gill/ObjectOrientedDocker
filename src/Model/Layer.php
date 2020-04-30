@@ -35,6 +35,11 @@ class Layer
         $this->arguments = $arguments;
     }
 
+    /**
+     * @param bool $multiline
+     *
+     * @return $this
+     */
     public function setMultiline(bool $multiline = true): Layer
     {
         $this->multiline = $multiline;
@@ -42,6 +47,11 @@ class Layer
         return $this;
     }
 
+    /**
+     * @param string $comment
+     *
+     * @return $this
+     */
     public function setComment(string $comment): Layer
     {
         $this->comment = $comment;

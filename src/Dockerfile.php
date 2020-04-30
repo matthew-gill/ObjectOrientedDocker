@@ -154,7 +154,7 @@ abstract class Dockerfile
      *
      * @return Layer
      */
-    protected function copyFromOtherDockerfile(string $class, string ...$argument): Layer
+    protected function copyFromStage(string $class, string ...$argument): Layer
     {
         return $this->copy('--from=' . Utils::sluggifyClassName($class), ...$argument);
     }

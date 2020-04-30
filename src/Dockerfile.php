@@ -6,6 +6,7 @@ use MattGill\Model\Layer;
 use MattGill\Model\LineageStage;
 use MattGill\Model\Noop;
 use ReflectionException;
+use RuntimeException;
 
 abstract class Dockerfile
 {
@@ -19,10 +20,21 @@ abstract class Dockerfile
      */
     protected $instructionCountMap;
 
-    final public function __construct(bool $splat = false)
+    /**
+     * Creates a new Dockerfile instance.
+     *
+     * @param bool $initialise - should the layers be built automatically on construct?
+     */
+    final public function __construct(bool $initialise = true)
     {
-        if ( ! $splat) {
+        if ( ! $initialise) {
+            return;
+        }
+
+        try {
             $this->loadLineageAndConfigure($this, get_class($this));
+        } catch (ReflectionException $e) {
+            throw new RuntimeException("Could not build dockerfile. Please check your syntax.s");
         }
     }
 
@@ -354,7 +366,7 @@ abstract class Dockerfile
         if ($thizz->getDependentDockerfiles() !== []) {
             foreach ($thizz->getDependentDockerfiles() as $dependency) {
                 /** @var Dockerfile $instanciated */
-                $instanciated = new $dependency(true);
+                $instanciated = new $dependency(false);
                 $this->loadLineageAndConfigure($instanciated, get_class($instanciated), $dependencies);
             }
         }
@@ -362,7 +374,7 @@ abstract class Dockerfile
 
         while ($parent = get_parent_class($current)) {
 
-            $lineageStage = new LineageStage(new $current(true));
+            $lineageStage = new LineageStage(new $current(false));
 
             // We use the stagename to index the array because dependencies may bring in the same stage more than once
             // and we only ever want to build the stage once.

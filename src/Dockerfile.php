@@ -3,53 +3,26 @@
 namespace MattGill;
 
 use MattGill\Model\Layer;
+use MattGill\Model\LineageStage;
+use ReflectionException;
 
 abstract class Dockerfile
 {
     /**
      * @var Layer[]
      */
-    protected $layers;
+    protected $layers = [];
 
     /**
      * @var array<string,<int>
      */
     protected $instructionCountMap;
 
-    public function __construct()
+    final public function __construct(bool $splat = false)
     {
-        $current = $this;
-
-        $runit = [];
-
-        $this->loadLineage($this, $this, $runit);
-
-        foreach ($runit as $as => $run) {
-
-            $this->from("{$run['from']} as {$as}");
-
-            $run['configure']->invoke($run['this']);
-
-            if($run['this'] !== $this) {
-                $this->layers += $run['this']->getLayers();
-            }
-
+        if ( ! $splat) {
+            $this->loadLineageAndConfigure($this, get_class($this));
         }
-
-    }
-
-    private function makeClassSafe($clazz): string
-    {
-        if (is_object($clazz)) {
-            return get_class($clazz);
-        }
-
-        return $clazz;
-    }
-
-    private function sluggifyClassName(string $className): string
-    {
-        return str_replace('\\', '-', strtolower($className));
     }
 
     abstract public function configure(): void;
@@ -346,47 +319,73 @@ abstract class Dockerfile
         return [];
     }
 
-    abstract protected function getFrom(): string;
+    /**
+     * The root image which the container is built on, e.g. 'ubuntu' or 'busybox'
+     *
+     * @return string
+     */
+    abstract public function getRootImage(): string;
 
-    private function loadLineage(Dockerfile $thizz, $current, array &$torun): void
+    /**
+     * @param Dockerfile $thizz
+     * @param string     $current
+     * @param array      $dependencies
+     *
+     * @throws ReflectionException
+     */
+    private function loadLineageAndConfigure(Dockerfile $thizz, string $current, array $dependencies = []): void
     {
-        $runrun = [];
+        $lineage = [];
 
-        while ($parent = get_parent_class($current)) {
-
-            if ($parent !== __CLASS__) {
-                $from = $thizz->sluggifyClassName(get_parent_class($current));
-            } else {
-                $from = $thizz->getFrom();
-            }
-
-            $as = $thizz->sluggifyClassName($this->makeClassSafe($current));
-
-            $reflectionMethod = new \ReflectionMethod($current, 'configure');
-
-            $runrun[$as] = [
-                'from'      => $from,
-                'configure' => $reflectionMethod,
-                'this'      => $thizz,
-            ];
-
-            $current = $parent;
-
-        }
-
-        $runrun = array_reverse($runrun);
-
-        $torun = array_merge($torun, $runrun);
-
-
+        // If this lineage has dependencies which aren't in the inheritance structure, we construct them manually and
+        // load THEIR lineage too. This triggers recursion in case a dependant class ALSO has dependencies.
         if ($thizz->getDependentDockerfiles() !== []) {
             foreach ($thizz->getDependentDockerfiles() as $dependency) {
                 /** @var Dockerfile $instanciated */
-                $instanciated = new $dependency();
-                $this->loadLineage($instanciated, $instanciated, $torun);
+                $instanciated = new $dependency(true);
+                $this->loadLineageAndConfigure($instanciated, get_class($instanciated), $dependencies);
             }
         }
 
+
+        while ($parent = get_parent_class($current)) {
+
+            $lineageStage = new LineageStage(new $current(true));
+
+            // We use the stagename to index the array because dependencies may bring in the same stage more than once
+            // and we only ever want to build the stage once.
+            $lineage[$lineageStage->getStageName()] = $lineageStage;
+
+
+            /** @noinspection CallableParameterUseCaseInTypeContextInspection */
+            $current = $parent;
+        }
+
+        // As the above parent lineage starts from child -> parent -> grandparent, this means that if we DONT reverse
+        // the order a child container will try to be built before it's parent - and the child class will have
+        // dependencies on the parents, so the parents need to be built first: grandparent -> parent -> child.
+        $lineage = array_reverse($lineage);
+
+        // Now the lineage is in order, we append it to the dependencies
+        $dependencies = array_merge($dependencies, $lineage);
+
+
+        $this->loadAndConfigureUsingLineageStages($dependencies);
+
+    }
+
+    /**
+     * @param LineageStage[] $lineageStages
+     */
+    private function loadAndConfigureUsingLineageStages(array $lineageStages): void
+    {
+        foreach ($lineageStages as $lineageStage) {
+
+            $this->from("{$lineageStage->getFrom()} as {$lineageStage->getStageName()}");
+
+            $this->layers = array_merge($this->layers, $lineageStage->getLayers());
+
+        }
     }
 
 }

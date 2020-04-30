@@ -7,10 +7,6 @@ use PHPUnit\Framework\TestCase;
 
 abstract class SnapshotTest extends TestCase
 {
-    public function testWhichFailesToTestGithub(): void
-    {
-        $this->fail('testing');
-    }
     public function testSnapshot(): void
     {
         $snapshotclass = $this->getClassToSnapshot();

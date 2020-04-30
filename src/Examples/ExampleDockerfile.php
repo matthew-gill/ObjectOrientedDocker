@@ -6,20 +6,9 @@ use MattGill\Dockerfile;
 
 class ExampleDockerfile extends Dockerfile
 {
-    protected function getImageName(): string
+    public function configure(): void
     {
-        return 'ubuntu-example';
-    }
-
-    protected function getTag(): string
-    {
-        return 'latest';
-    }
-
-    protected function configure(): void
-    {
-        $this->from('ubuntu')
-            ->setStageName('theexample');
+        $this->from('ubuntu');
 
         $this->run('apt-get update', 'apt-get install')
             ->setMultiline()
@@ -29,5 +18,10 @@ class ExampleDockerfile extends Dockerfile
 
         $this->entrypoint("/usr/sbin/nginx", "-g", "daemon off;");
         $this->expose(80);
+    }
+
+    public function getRootImage(): string
+    {
+        return 'ubuntu-example';
     }
 }

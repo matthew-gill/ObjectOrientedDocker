@@ -4,5 +4,5 @@
 require __DIR__ . '/vendor/autoload.php';
 
 
-$example = new \MattGill\Examples\ExampleDockerfile();
-print_r($example->compile(true));
+$local = new \MattGill\Custom\Cron();
+print_r($local->compile(true));

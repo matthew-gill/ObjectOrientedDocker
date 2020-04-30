@@ -4,6 +4,7 @@ namespace MattGill;
 
 use MattGill\Model\Layer;
 use MattGill\Model\LineageStage;
+use MattGill\Model\Noop;
 use ReflectionException;
 
 abstract class Dockerfile
@@ -294,10 +295,10 @@ abstract class Dockerfile
         $compiled = "";
 
         foreach ($this->layers as $layer) {
-            $compiled .= $layer->compile($withComments) . "\n" . "\n";
+            $compiled .= $layer->compile($withComments) . "\n";
         }
 
-        return $compiled;
+        return trim($compiled);
     }
 
     /**
@@ -396,6 +397,8 @@ abstract class Dockerfile
 
             /** @noinspection SlowArrayOperationsInLoopInspection */
             $this->layers = array_merge($this->layers, $lineageStage->getLayers());
+
+            $this->layers[] = new Noop();
 
         }
     }

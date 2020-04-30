@@ -7,10 +7,13 @@
             "email": "matt.gill@mention-me.com"
         }
     ],
-    "require": {},
+    "require": {
+        "phpunit/phpunit": "^7.5"
+    },
     "autoload": {
 	    "classmap": [
-	      "src/"
+	      "src/",
+	      "tests/"
 	    ]
   }
 }

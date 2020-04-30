@@ -56,7 +56,7 @@ class Builder extends Dockerfile
     {
         $this->run('go', 'get', 'github.com/urfave/negroni');
         $this->copy('server.go', '/');
-        $this->run('go', 'build /server.go');
+        $this->run('go', 'build', '/server.go');
     }
 }
 ```

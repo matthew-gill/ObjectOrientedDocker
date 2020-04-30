@@ -1,6 +1,6 @@
 <?php
 
-namespace Snapshot;
+namespace MattGill\Snapshot;
 
 use MattGill\Examples\Bitnami\Main;
 

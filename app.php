@@ -1,8 +1,8 @@
 <?php
 
+use MattGill\Examples\Bitnami\Main;
 
 require __DIR__ . '/vendor/autoload.php';
 
-
-$local = new \MattGill\Custom\Cron();
-print_r($local->compile(true));
+$example = new Main();
+print_r($example->compile(true));

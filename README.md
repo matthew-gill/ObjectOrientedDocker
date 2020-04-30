@@ -10,33 +10,53 @@ php app.php
 # Example:
 
 ```php
-<?php
-
-class ExampleDockerfile extends Dockerfile
+class Main extends Dockerfile
 {
-    protected function getImageName(): string
+    /**
+     * @return string
+     */
+    public function getRootImage(): string
     {
-        return 'ubuntu-example';
+        return 'bitnami/minideb:stretch';
     }
 
-    protected function getTag(): string
+    public function configure(): void
     {
-        return 'latest';
+        $this->run('mkdir', '-p', '/app')
+            ->setComment("Set up the direcoties");
+        $this->workdir('/app');
+        $this->copyFromStage(Builder::class, '/go/server', '.');
+        $this->copy('page.html', '.');
+        $this->run('useradd', '-r', '-u', '1001', '-g', 'root', 'nonroot');
+        $this->run('chown', '-R', 'nonroot', '/app');
+        $this->user('nonroot');
+        $this->env('PORT', '8080');
+        $this->cmd('/app/server');
     }
 
-    protected function configure(): void
+    public function getDependentStages(): array
     {
-        $this->from('ubuntu')
-            ->setStageName('theexample');
+        return [
+            Builder::class,
+        ];
+    }
+}
 
-        $this->run('apt-get update', 'apt-get install')
-            ->setMultiline()
-            ->setComment("Update to latest");
+class Builder extends Dockerfile
+{
+    /**
+     * @return string
+     */
+    public function getRootImage(): string
+    {
+        return 'bitnami/golang:1.13';
+    }
 
-        $this->run('apt-get install -y', 'nginx');
-
-        $this->entrypoint("/usr/sbin/nginx", "-g", "daemon off;");
-        $this->expose(80);
+    public function configure(): void
+    {
+        $this->run('go', 'get', 'github.com/urfave/negroni');
+        $this->copy('server.go', '/');
+        $this->run('go', 'build /server.go');
     }
 }
 ```
@@ -44,25 +64,31 @@ class ExampleDockerfile extends Dockerfile
 Then
 
 ```php
-$example = new ExampleDockerfile();
+$example = new Main();
 print_r($example->compile(true));
 ````
 
 Will output
 
 ```dockerfile
-FROM ubuntu as theexample
+FROM bitnami/golang:1.13 as mattgill-examples-bitnami-builder
+RUN go get github.com/urfave/negroni
+COPY server.go /
+RUN go build /server.go
 
-# Update to latest
-RUN apt-get update && \
-	apt-get install
-
-RUN apt-get install -y nginx
-
-ENTRYPOINT /usr/sbin/nginx -g daemon off;
-
-EXPOSE 80
+FROM bitnami/minideb:stretch as mattgill-examples-bitnami-main
+# Set up the direcoties
+RUN mkdir -p /app
+WORKDIR /app
+COPY --from=mattgill-examples-bitnami-builder /go/server .
+COPY page.html .
+RUN useradd -r -u 1001 -g root nonroot
+RUN chown -R nonroot /app
+USER nonroot
+ENV PORT 8080
+CMD /app/server
 ```
+
 
 MIT licence.
 https://opensource.org/licenses/MIT

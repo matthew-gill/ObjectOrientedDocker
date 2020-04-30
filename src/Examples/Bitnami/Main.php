@@ -28,7 +28,8 @@ class Main extends Dockerfile
 
     public function configure(): void
     {
-        $this->run('mkdir', '-p', '/app');
+        $this->run('mkdir', '-p', '/app')
+            ->setComment("Set up the direcoties");
         $this->workdir('/app');
         $this->copyFromStage(Builder::class, '/go/server', '.');
         $this->copy('page.html', '.');

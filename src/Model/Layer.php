@@ -21,7 +21,7 @@ class Layer
     /**
      * @var string
      */
-    private $comment = null;
+    private $comment;
 
     /**
      * Layer constructor.
@@ -77,43 +77,11 @@ class Layer
         $arguments = $this->arguments;
 
         if ($this->multiline) {
-            $arguments = [implode(" && \ \n\t", $this->arguments)];
+            $arguments = [implode(" && \ \n    ", $this->arguments)];
         }
 
         $compiled .= implode(" ", array_merge([$this->instruction], $arguments));
 
         return $compiled;
-    }
-
-    /**
-     * @return string
-     */
-    public function getInstruction(): string
-    {
-        return $this->instruction;
-    }
-
-    /**
-     * @param string $instruction
-     */
-    public function setInstruction(string $instruction): void
-    {
-        $this->instruction = $instruction;
-    }
-
-    /**
-     * @return string[]
-     */
-    public function getArguments(): array
-    {
-        return $this->arguments;
-    }
-
-    /**
-     * @param string ...$arguments
-     */
-    public function setArguments(string ...$arguments): void
-    {
-        $this->arguments = $arguments;
     }
 }

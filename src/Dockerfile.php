@@ -169,7 +169,7 @@ abstract class Dockerfile
      */
     protected function copyFromStage(string $class, string ...$argument): Layer
     {
-        return $this->copy('--from=' . Utils::sluggifyClassName($class), ...$argument);
+        return $this->copy('--from=' . Utils::convertClassNameToStageName($class), ...$argument);
     }
 
     /**
@@ -338,7 +338,7 @@ abstract class Dockerfile
      *
      * @return array
      */
-    protected function getDependentDockerfiles(): array
+    protected function getDependentStages(): array
     {
         return [];
     }
@@ -363,8 +363,8 @@ abstract class Dockerfile
 
         // If this lineage has dependencies which aren't in the inheritance structure, we construct them manually and
         // load THEIR lineage too. This triggers recursion in case a dependant class ALSO has dependencies.
-        if ($thizz->getDependentDockerfiles() !== []) {
-            foreach ($thizz->getDependentDockerfiles() as $dependency) {
+        if ($thizz->getDependentStages() !== []) {
+            foreach ($thizz->getDependentStages() as $dependency) {
                 /** @var Dockerfile $instanciated */
                 $instanciated = new $dependency(false);
                 $this->loadLineageAndConfigure($instanciated, get_class($instanciated), $dependencies);

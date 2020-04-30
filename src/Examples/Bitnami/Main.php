@@ -39,7 +39,7 @@ class Main extends Dockerfile
         $this->cmd('/app/server');
     }
 
-    public function getDependentDockerfiles(): array
+    public function getDependentStages(): array
     {
         return [
             Builder::class,

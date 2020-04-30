@@ -1,5 +1,5 @@
-# ObjectOrientedDocker
-Create Dockerfiles using PHP - a HORRENDOUS, hacky project which should not be used by anyone!
+# ObjectOrientedDocker 🐳
+Create Dockerfiles using PHP including Multistage. Allows for inheritance between other dockerfiles.
 
 # Use it
 ```
@@ -63,3 +63,6 @@ ENTRYPOINT /usr/sbin/nginx -g daemon off;
 
 EXPOSE 80
 ```
+
+MIT licence.
+https://opensource.org/licenses/MIT

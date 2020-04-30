@@ -18,10 +18,55 @@ abstract class Dockerfile
 
     public function __construct()
     {
-        $this->configure();
+        $runit = [];
+
+        if ($this->getDependentDockerfiles() !== []) {
+            foreach ($this->getDependentDockerfiles() as $dependency) {
+                /** @var Dockerfile $instanciated */
+                $instanciated = new $dependency();
+                $this->loadLineage($instanciated, $instanciated, $runit);
+            }
+        }
+
+        $this->loadLineage($this, $this, $runit);
+
+        foreach ($runit as $as => $run) {
+
+            $this->from("{$run['from']} as {$as}");
+
+            $run['configure']->invoke($run['this']);
+
+            if ($run['this'] !== $this) {
+                $this->layers += $run['this']->getLayers();
+            }
+
+        }
+
     }
 
-    abstract protected function configure(): void;
+    private function makeClassSafe($clazz): string
+    {
+        if (is_object($clazz)) {
+            return get_class($clazz);
+        }
+
+        return $clazz;
+    }
+
+    private function sluggifyClassName(string $className): string
+    {
+        return str_replace('\\', '-', strtolower($className));
+    }
+
+    abstract public function configure(): void;
+
+    /**
+     * @return Layer[]
+     */
+    public function getLayers(): array
+    {
+        return $this->layers;
+    }
 
     /**
      * @see https://docs.docker.com/engine/reference/builder/#from
@@ -268,7 +313,7 @@ abstract class Dockerfile
      */
     public function compile(bool $withComments = false): string
     {
-        $compiled = '';
+        $compiled = "";
 
         foreach ($this->layers as $layer) {
             $compiled .= $layer->compile($withComments) . "\n" . "\n";
@@ -293,8 +338,51 @@ abstract class Dockerfile
         // Probably something VERY hacky here.
     }
 
-    abstract protected function getImageName(): string;
+    /**
+     * If your dockerfile class has a FROM or COPY stage which is
+     * not already part of your dockerfile's ancestry, return the class
+     * here. If the class is not present and missing from the ancestry
+     * it is assumed that the container is public and available in your
+     * docker context, e.g. ubuntu or busybox.
+     *
+     * @return array
+     */
+    protected function getDependentDockerfiles(): array
+    {
+        return [];
+    }
 
-    abstract protected function getTag(): string;
+    abstract protected function getFrom(): string;
+
+    private function loadLineage(Dockerfile $thizz, $current, array &$torun): void
+    {
+        $runrun = [];
+
+        while ($parent = get_parent_class($current)) {
+
+            if ($parent !== __CLASS__) {
+                $from = $thizz->sluggifyClassName(get_parent_class($current));
+            } else {
+                $from = $thizz->getFrom();
+            }
+
+            $as = $thizz->sluggifyClassName($this->makeClassSafe($current));
+
+            $reflectionMethod = new \ReflectionMethod($current, 'configure');
+
+            $runrun[$as] = [
+                'from'      => $from,
+                'configure' => $reflectionMethod,
+                'this'      => $thizz,
+            ];
+
+            $current = $parent;
+
+        }
+
+        $runrun = array_reverse($runrun);
+
+        $torun = array_merge($torun, $runrun);
+    }
 
 }

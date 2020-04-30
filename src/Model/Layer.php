@@ -15,11 +15,6 @@ class Layer
     private $arguments;
 
     /**
-     * @var string
-     */
-    private $stageName = null;
-
-    /**
      * @var bool
      */
     private $multiline;
@@ -38,14 +33,6 @@ class Layer
     {
         $this->instruction = $instruction;
         $this->arguments = $arguments;
-    }
-
-    public function setStageName(string $stageName): Layer
-    {
-        // Todo does this layer support being the first layer of a stage
-        $this->stageName = $stageName;
-
-        return $this;
     }
 
     public function setMultiline(bool $multiline = true): Layer
@@ -77,15 +64,13 @@ class Layer
             $compiled .= '# ' . "{$this->comment}\n";
         }
 
-        $stageSuffix = $this->stageName ? " as {$this->stageName}" : '';
-
         $arguments = $this->arguments;
 
         if ($this->multiline) {
             $arguments = [implode(" && \ \n\t", $this->arguments)];
         }
 
-        $compiled .= implode(" ", array_merge([$this->instruction], $arguments)) . $stageSuffix;
+        $compiled .= implode(" ", array_merge([$this->instruction], $arguments));
 
         return $compiled;
     }

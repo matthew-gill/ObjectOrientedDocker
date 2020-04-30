@@ -18,25 +18,19 @@ abstract class Dockerfile
 
     public function __construct()
     {
-        $lineage = [];
+        $current = $this;
 
-        if ($this->getDependentDockerfiles() !== []) {
-            foreach ($this->getDependentDockerfiles() as $dependency) {
-                /** @var Dockerfile $instanciated */
-                $instanciated = new $dependency();
-                $this->loadLineage($instanciated, $lineage);
-            }
-        }
+        $runit = [];
 
-        $this->loadLineage($this, $lineage);
+        $this->loadLineage($this, $this, $runit);
 
-        foreach ($lineage as $as => $run) {
+        foreach ($runit as $as => $run) {
 
             $this->from("{$run['from']} as {$as}");
 
             $run['configure']->invoke($run['this']);
 
-            if ($run['this'] !== $this) {
+            if($run['this'] !== $this) {
                 $this->layers += $run['this']->getLayers();
             }
 
@@ -354,26 +348,26 @@ abstract class Dockerfile
 
     abstract protected function getFrom(): string;
 
-    private function loadLineage(Dockerfile $current, array &$torun): void
+    private function loadLineage(Dockerfile $thizz, $current, array &$torun): void
     {
         $runrun = [];
 
         while ($parent = get_parent_class($current)) {
 
             if ($parent !== __CLASS__) {
-                $from = $current->sluggifyClassName(get_parent_class($current));
+                $from = $thizz->sluggifyClassName(get_parent_class($current));
             } else {
-                $from = $current->getFrom();
+                $from = $thizz->getFrom();
             }
 
-            $as = $this->sluggifyClassName($this->makeClassSafe($current));
+            $as = $thizz->sluggifyClassName($this->makeClassSafe($current));
 
             $reflectionMethod = new \ReflectionMethod($current, 'configure');
 
             $runrun[$as] = [
                 'from'      => $from,
                 'configure' => $reflectionMethod,
-                'this'      => $current,
+                'this'      => $thizz,
             ];
 
             $current = $parent;
@@ -383,6 +377,16 @@ abstract class Dockerfile
         $runrun = array_reverse($runrun);
 
         $torun = array_merge($torun, $runrun);
+
+
+        if ($thizz->getDependentDockerfiles() !== []) {
+            foreach ($thizz->getDependentDockerfiles() as $dependency) {
+                /** @var Dockerfile $instanciated */
+                $instanciated = new $dependency();
+                $this->loadLineage($instanciated, $instanciated, $torun);
+            }
+        }
+
     }
 
 }

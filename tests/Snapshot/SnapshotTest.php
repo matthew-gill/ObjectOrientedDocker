@@ -16,7 +16,7 @@ abstract class SnapshotTest extends TestCase
 
         $this->assertSame(
             $this->getExpectedSnapshot(),
-            $dockerfile->compile()
+            $dockerfile->compile(true)
         );
     }
 

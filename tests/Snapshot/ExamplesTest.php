@@ -20,7 +20,7 @@ COPY server.go /
 RUN go build /server.go
 
 FROM bitnami/minideb:stretch as mattgill-examples-bitnami-main
-# Set up the direcoties
+# Set up the directories
 RUN mkdir -p /app
 WORKDIR /app
 COPY --from=mattgill-examples-bitnami-builder /go/server .

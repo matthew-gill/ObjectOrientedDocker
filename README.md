@@ -23,7 +23,7 @@ class Main extends Dockerfile
     public function configure(): void
     {
         $this->run('mkdir', '-p', '/app')
-            ->setComment("Set up the direcoties");
+            ->setComment("Set up the directories");
         $this->workdir('/app');
         $this->copyFromStage(Builder::class, '/go/server', '.');
         $this->copy('page.html', '.');
@@ -77,7 +77,7 @@ COPY server.go /
 RUN go build /server.go
 
 FROM bitnami/minideb:stretch as mattgill-examples-bitnami-main
-# Set up the direcoties
+# Set up the directories
 RUN mkdir -p /app
 WORKDIR /app
 COPY --from=mattgill-examples-bitnami-builder /go/server .

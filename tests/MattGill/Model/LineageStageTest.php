@@ -2,8 +2,8 @@
 
 namespace MattGill\Model;
 
-use MattGill\Mock\Factory\SimpleExtendedTestDockerfile;
-use MattGill\Mock\Factory\TestDockerfile;
+use MattGill\Examples\Test\SimpleExtendedTestDockerfile;
+use MattGill\Examples\Test\TestDockerfile;
 use MattGill\Utils;
 use PHPUnit\Framework\TestCase;
 

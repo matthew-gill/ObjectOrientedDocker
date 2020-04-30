@@ -1,4 +1,4 @@
-src/custom/*
-!src/custom/README.md
+src/Custom/*
+!src/Custom/README.md
 
 vendor

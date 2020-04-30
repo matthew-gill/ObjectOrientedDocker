@@ -1,6 +1,6 @@
 <?php
 
-namespace MattGill\Mock\Factory;
+namespace MattGill\Examples\Test;
 
 class SimpleExtendedTestDockerfile extends TestDockerfile
 {

@@ -18,6 +18,8 @@ FROM ubuntu
 RUN echo from part A
 
 RUN echo from part b
+
+RUN echo "Ive been composed!"
 EXPECTED;
 
     }

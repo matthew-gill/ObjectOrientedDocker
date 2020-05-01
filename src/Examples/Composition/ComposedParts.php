@@ -6,6 +6,11 @@ use MattGill\CompositionDockerfile;
 
 class ComposedParts extends CompositionDockerfile
 {
+    public function configure(): void
+    {
+       $this->run('echo "Ive been composed!"');
+    }
+
     public function getDependentStages(): array
     {
         return [

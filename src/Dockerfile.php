@@ -25,7 +25,7 @@ abstract class Dockerfile
      *
      * @param bool $initialise - should the layers be built automatically on construct?
      */
-    public function __construct(bool $initialise = true)
+    final public function __construct(bool $initialise = true)
     {
         if ( ! $initialise) {
             return;

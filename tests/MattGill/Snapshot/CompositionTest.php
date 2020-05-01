@@ -17,9 +17,13 @@ class CompositionTest extends SnapshotTest
 FROM ubuntu
 RUN echo from part A
 
-RUN echo from part b
+RUN echo from part B
 
 RUN echo "Ive been composed!"
+
+RUN echo from part C
+
+RUN echo from part D
 EXPECTED;
 
     }

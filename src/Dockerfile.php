@@ -387,6 +387,18 @@ abstract class Dockerfile
         // Now the lineage is in order, we append it to the dependencies
         $dependencies = array_merge($dependencies, $lineage);
 
+
+        if ($dockerfile instanceof CompositionDockerfile && $dockerfile->getDependentStagesAfter() !== []) {
+            foreach ($dockerfile->getDependentStagesAfter() as $dependency) {
+                /** @var Dockerfile $instanciated */
+
+                $lineageStage = new LineageStage(new $dependency(false));
+                $lineage[$lineageStage->getStageName()] = $lineageStage;
+
+            }
+            $dependencies = array_merge($dependencies, $lineage);
+        }
+
         $this->buildMultistageLayers($dependencies);
     }
 

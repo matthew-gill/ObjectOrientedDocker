@@ -4,10 +4,10 @@ namespace MattGill\Examples\Composition;
 
 use MattGill\ComponentDockerfile;
 
-class PartB extends ComponentDockerfile
+class PartC extends ComponentDockerfile
 {
     public function configure(): void
     {
-        $this->run('echo', 'from part B');
+        $this->run('echo', 'from part C');
     }
 }

@@ -8,7 +8,7 @@ class ComposedParts extends CompositionDockerfile
 {
     public function configure(): void
     {
-       $this->run('echo "Ive been composed!"');
+        $this->run('echo "Ive been composed!"');
     }
 
     public function getDependentStages(): array
@@ -16,6 +16,14 @@ class ComposedParts extends CompositionDockerfile
         return [
             PartA::class,
             PartB::class,
+        ];
+    }
+
+    public function getDependentStagesAfter(): array
+    {
+        return [
+            PartC::class,
+            PartD::class,
         ];
     }
 

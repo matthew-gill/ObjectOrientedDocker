@@ -32,7 +32,7 @@ abstract class Dockerfile
         }
 
         try {
-            $this->loadLineageAndConfigure($this, get_class($this));
+            $this->loadLineageAndConfigure($this);
         } catch (ReflectionException $e) {
             throw new RuntimeException("Could not build dockerfile. Please check your syntax.s");
         }
@@ -81,13 +81,6 @@ abstract class Dockerfile
      */
     protected function cmd(string ...$argument): Layer
     {
-        // Array is preferred
-        /**
-         * The CMD instruction has three forms:
-         * CMD ["executable","param1","param2"] (exec form, this is the preferred form)
-         * CMD ["param1","param2"] (as default parameters to ENTRYPOINT)
-         * CMD command param1 param2 (shell form)
-         */
         return $this->addInstruction('CMD', ...$argument);
     }
 
@@ -112,13 +105,6 @@ abstract class Dockerfile
      */
     protected function expose(int $argument): Layer
     {
-        // Array is preferred
-        /**
-         * The CMD instruction has three forms:
-         * CMD ["executable","param1","param2"] (exec form, this is the preferred form)
-         * CMD ["param1","param2"] (as default parameters to ENTRYPOINT)
-         * CMD command param1 param2 (shell form)
-         */
         return $this->addInstruction('EXPOSE', $argument);
     }
 
@@ -351,38 +337,38 @@ abstract class Dockerfile
     abstract public function getRootImage(): string;
 
     /**
-     * @param Dockerfile $context
-     * @param string     $current
+     * @param Dockerfile $dockerfile
      * @param array      $dependencies
      *
      * @throws ReflectionException
      */
-    private function loadLineageAndConfigure(Dockerfile $context, string $current, array $dependencies = []): void
+    private function loadLineageAndConfigure(Dockerfile $dockerfile, array $dependencies = []): void
     {
         $lineage = [];
 
-        // If this lineage has dependencies which aren't in the inheritance structure, we construct them manually and
+        // If this dockerfile has dependencies which aren't in the inheritance structure, we construct them manually and
         // load THEIR lineage too. This triggers recursion in case a dependant class ALSO has dependencies.
-        if ($context->getDependentStages() !== []) {
-            foreach ($context->getDependentStages() as $dependency) {
+        if ($dockerfile->getDependentStages() !== []) {
+            foreach ($dockerfile->getDependentStages() as $dependency) {
                 /** @var Dockerfile $instanciated */
                 $instanciated = new $dependency(false);
-                $this->loadLineageAndConfigure($instanciated, get_class($instanciated), $dependencies);
+                $this->loadLineageAndConfigure($instanciated, $dependencies);
             }
         }
 
+        // Because get_parent_class returns the class name as a string. We convert the current dockerfile to it's class
+        // string too so we can use it in the loop.
+        $currentClass = get_class($dockerfile);
 
-        while ($parent = get_parent_class($current)) {
+        while ($parent = get_parent_class($currentClass)) {
 
-            $lineageStage = new LineageStage(new $current(false));
+            $lineageStage = new LineageStage(new $currentClass(false));
 
             // We use the stagename to index the array because dependencies may bring in the same stage more than once
             // and we only ever want to build the stage once.
             $lineage[$lineageStage->getStageName()] = $lineageStage;
 
-
-            /** @noinspection CallableParameterUseCaseInTypeContextInspection */
-            $current = $parent;
+            $currentClass = $parent;
         }
 
         // As the above parent lineage starts from child -> parent -> grandparent, this means that if we DONT reverse
@@ -394,14 +380,13 @@ abstract class Dockerfile
         $dependencies = array_merge($dependencies, $lineage);
 
 
-        $this->loadAndConfigureUsingLineageStages($dependencies);
-
+        $this->buildMultistageLayers($dependencies);
     }
 
     /**
      * @param LineageStage[] $lineageStages
      */
-    private function loadAndConfigureUsingLineageStages(array $lineageStages): void
+    private function buildMultistageLayers(array $lineageStages): void
     {
         foreach ($lineageStages as $lineageStage) {
 

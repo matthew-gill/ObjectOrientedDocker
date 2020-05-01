@@ -2,6 +2,7 @@
 
 namespace MattGill\Model;
 
+use LogicException;
 use PHPUnit\Framework\TestCase;
 
 class NoopTest extends TestCase
@@ -15,7 +16,7 @@ class NoopTest extends TestCase
     public function testCommentsThrowException(): void
     {
         $noop = new Noop();
-        $this->expectException(\LogicException::class);
+        $this->expectException(LogicException::class);
 
         $noop->setComment("Test");
     }
@@ -23,7 +24,7 @@ class NoopTest extends TestCase
     public function testMultilineThrowException(): void
     {
         $noop = new Noop();
-        $this->expectException(\LogicException::class);
+        $this->expectException(LogicException::class);
 
         $noop->setMultiline(true);
     }

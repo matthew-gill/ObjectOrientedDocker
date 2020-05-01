@@ -25,13 +25,17 @@ abstract class Dockerfile
      *
      * @param bool $initialise - should the layers be built automatically on construct?
      */
-    final public function __construct(bool $initialise = true)
+    public function __construct(bool $initialise = true)
     {
         if ( ! $initialise) {
             return;
         }
 
         try {
+
+            if ($this instanceof CompositionDockerfile) {
+                $this->from(($this->getRootImage()));
+            }
             $this->loadLineageAndConfigure($this);
         } catch (ReflectionException $e) {
             throw new RuntimeException("Could not build dockerfile. Please check your syntax.s");
@@ -342,7 +346,7 @@ abstract class Dockerfile
      *
      * @throws ReflectionException
      */
-    private function loadLineageAndConfigure(Dockerfile $dockerfile, array $dependencies = []): void
+    protected function loadLineageAndConfigure(Dockerfile $dockerfile, array $dependencies = []): void
     {
         $lineage = [];
 
@@ -362,6 +366,10 @@ abstract class Dockerfile
 
         while ($parent = get_parent_class($currentClass)) {
 
+            if ($currentClass === ComponentDockerfile::class || $currentClass === CompositionDockerfile::class) {
+                break;
+            }
+
             $lineageStage = new LineageStage(new $currentClass(false));
 
             // We use the stagename to index the array because dependencies may bring in the same stage more than once
@@ -379,7 +387,6 @@ abstract class Dockerfile
         // Now the lineage is in order, we append it to the dependencies
         $dependencies = array_merge($dependencies, $lineage);
 
-
         $this->buildMultistageLayers($dependencies);
     }
 
@@ -390,8 +397,9 @@ abstract class Dockerfile
     {
         foreach ($lineageStages as $lineageStage) {
 
-            $this->from("{$lineageStage->getFrom()} as {$lineageStage->getStageName()}");
-
+            if ( ! $this instanceof CompositionDockerfile) {
+                $this->from("{$lineageStage->getFrom()} as {$lineageStage->getStageName()}");
+            }
             /** @noinspection SlowArrayOperationsInLoopInspection */
             $this->layers = array_merge($this->layers, $lineageStage->getLayers());
 

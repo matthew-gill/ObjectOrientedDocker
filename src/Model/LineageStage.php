@@ -63,4 +63,12 @@ class LineageStage
     {
         return Utils::convertClassNameToStageName(get_class($this->stage));
     }
+
+    /**
+     * @return Dockerfile
+     */
+    public function getStage(): Dockerfile
+    {
+        return $this->stage;
+    }
 }

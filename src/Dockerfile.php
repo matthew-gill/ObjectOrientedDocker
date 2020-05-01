@@ -351,20 +351,20 @@ abstract class Dockerfile
     abstract public function getRootImage(): string;
 
     /**
-     * @param Dockerfile $thizz
+     * @param Dockerfile $context
      * @param string     $current
      * @param array      $dependencies
      *
      * @throws ReflectionException
      */
-    private function loadLineageAndConfigure(Dockerfile $thizz, string $current, array $dependencies = []): void
+    private function loadLineageAndConfigure(Dockerfile $context, string $current, array $dependencies = []): void
     {
         $lineage = [];
 
         // If this lineage has dependencies which aren't in the inheritance structure, we construct them manually and
         // load THEIR lineage too. This triggers recursion in case a dependant class ALSO has dependencies.
-        if ($thizz->getDependentStages() !== []) {
-            foreach ($thizz->getDependentStages() as $dependency) {
+        if ($context->getDependentStages() !== []) {
+            foreach ($context->getDependentStages() as $dependency) {
                 /** @var Dockerfile $instanciated */
                 $instanciated = new $dependency(false);
                 $this->loadLineageAndConfigure($instanciated, get_class($instanciated), $dependencies);

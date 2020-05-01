@@ -346,7 +346,7 @@ abstract class Dockerfile
      *
      * @throws ReflectionException
      */
-    protected function loadLineageAndConfigure(Dockerfile $dockerfile, array $dependencies = []): void
+    private function loadLineageAndConfigure(Dockerfile $dockerfile, array $dependencies = []): void
     {
         $lineage = [];
 

@@ -8,7 +8,8 @@
         }
     ],
     "require": {
-        "phpunit/phpunit": "^7.5"
+        "phpunit/phpunit": "^7.5",
+        "pustato/topsort": "^1.0"
     },
     "autoload": {
 	    "classmap": [

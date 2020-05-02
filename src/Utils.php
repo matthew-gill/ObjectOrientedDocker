@@ -21,4 +21,11 @@ class Utils
     {
         return str_replace('\\', '-', strtolower($className));
     }
+
+    public static function getShortClassName(string $className): string
+    {
+        $pieces = explode('\\', $className);
+
+        return array_pop($pieces);
+    }
 }

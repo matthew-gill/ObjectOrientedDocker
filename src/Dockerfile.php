@@ -5,8 +5,6 @@ namespace MattGill;
 use MattGill\Model\Layer;
 use MattGill\Model\LineageStage;
 use MattGill\Model\Noop;
-use ReflectionException;
-use RuntimeException;
 
 abstract class Dockerfile
 {
@@ -14,11 +12,6 @@ abstract class Dockerfile
      * @var Layer[]
      */
     protected $layers = [];
-
-    /**
-     * @var array<string,<int>
-     */
-    protected $instructionCountMap;
 
     /**
      * Creates a new Dockerfile instance.
@@ -31,11 +24,11 @@ abstract class Dockerfile
             return;
         }
 
-        try {
-            $this->loadLineageAndConfigure($this);
-        } catch (ReflectionException $e) {
-            throw new RuntimeException("Could not build dockerfile. Please check your syntax.s");
+        if ($this instanceof CompositionDockerfile) {
+            $this->from(($this->getRootImage()));
         }
+
+        $this->loadLineageAndConfigure($this);
     }
 
     abstract public function configure(): void;
@@ -278,8 +271,6 @@ abstract class Dockerfile
         $layer = new Layer($instruction, ...$arguments);
         $this->layers[] = $layer;
 
-        $this->incrementInstructionCount($instruction);
-
         return $layer;
     }
 
@@ -297,17 +288,6 @@ abstract class Dockerfile
         }
 
         return trim($compiled);
-    }
-
-    /**
-     * @param string $instruction
-     */
-    private function incrementInstructionCount(string $instruction): void
-    {
-        // todo validate invalid instructions haven't been added
-        $currentValue = $this->instructionCountMap[$instruction] ?? 0;
-
-        $this->instructionCountMap[$instruction] = ++$currentValue;
     }
 
     public function launch(): void
@@ -338,29 +318,26 @@ abstract class Dockerfile
 
     /**
      * @param Dockerfile $dockerfile
-     * @param array      $dependencies
-     *
-     * @throws ReflectionException
+     * @param array      $priorLineage
      */
-    private function loadLineageAndConfigure(Dockerfile $dockerfile, array $dependencies = []): void
+    private function loadLineageAndConfigure(Dockerfile $dockerfile, array $priorLineage = []): void
     {
         $lineage = [];
 
         // If this dockerfile has dependencies which aren't in the inheritance structure, we construct them manually and
         // load THEIR lineage too. This triggers recursion in case a dependant class ALSO has dependencies.
-        if ($dockerfile->getDependentStages() !== []) {
-            foreach ($dockerfile->getDependentStages() as $dependency) {
-                /** @var Dockerfile $instanciated */
-                $instanciated = new $dependency(false);
-                $this->loadLineageAndConfigure($instanciated, $dependencies);
-            }
-        }
+        $this->loadDependencies($dockerfile->getDependentStages(), $priorLineage);
 
         // Because get_parent_class returns the class name as a string. We convert the current dockerfile to it's class
         // string too so we can use it in the loop.
         $currentClass = get_class($dockerfile);
 
+        // Traverse up the inheritance layers for the dockerfile
         while ($parent = get_parent_class($currentClass)) {
+
+            if ($currentClass === ComponentDockerfile::class || $currentClass === CompositionDockerfile::class) {
+                break;
+            }
 
             $lineageStage = new LineageStage(new $currentClass(false));
 
@@ -376,11 +353,20 @@ abstract class Dockerfile
         // dependencies on the parents, so the parents need to be built first: grandparent -> parent -> child.
         $lineage = array_reverse($lineage);
 
-        // Now the lineage is in order, we append it to the dependencies
-        $dependencies = array_merge($dependencies, $lineage);
+        // Now the lineage is in order, we append it to the existing lineage
+        $lineage = array_merge($priorLineage, $lineage);
 
+        // Composed dockerfiles may have dependenciess which come after it, so load those up too.
+        if ($dockerfile instanceof CompositionDockerfile) {
+            foreach ($dockerfile->getDependentStagesAfter() as $dependency) {
+                $lineageStage = new LineageStage(new $dependency(false));
+                $lineage[$lineageStage->getStageName()] = $lineageStage;
 
-        $this->buildMultistageLayers($dependencies);
+            }
+        }
+
+        // Now we have our array of dependencies, we can compile everything.
+        $this->buildMultistageLayers($lineage);
     }
 
     /**
@@ -390,13 +376,26 @@ abstract class Dockerfile
     {
         foreach ($lineageStages as $lineageStage) {
 
-            $this->from("{$lineageStage->getFrom()} as {$lineageStage->getStageName()}");
-
+            if ( ! $this instanceof CompositionDockerfile) {
+                $this->from("{$lineageStage->getFrom()} as {$lineageStage->getStageName()}");
+            }
             /** @noinspection SlowArrayOperationsInLoopInspection */
             $this->layers = array_merge($this->layers, $lineageStage->getLayers());
 
             $this->layers[] = new Noop();
+        }
+    }
 
+    /**
+     * @param array $dependencies
+     * @param array $existingLineage
+     */
+    private function loadDependencies(array $dependencies, array $existingLineage): void
+    {
+        foreach ($dependencies as $dependency) {
+            /** @var Dockerfile $instanciated */
+            $instanciated = new $dependency(false);
+            $this->loadLineageAndConfigure($instanciated, $existingLineage);
         }
     }
 

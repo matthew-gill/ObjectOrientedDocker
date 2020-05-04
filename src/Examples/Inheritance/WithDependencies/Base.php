@@ -6,7 +6,7 @@ use MattGill\Dockerfile;
 
 class Base extends Dockerfile
 {
-    public function getLayers(): array
+    protected function getLayers(): array
     {
         return [
             $this->run(
@@ -19,7 +19,7 @@ class Base extends Dockerfile
         ];
     }
 
-    public function getBaseImage(): string
+    protected function getBaseImage(): string
     {
         return 'php:7-apache';
     }

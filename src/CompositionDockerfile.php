@@ -2,7 +2,9 @@
 
 namespace MattGill;
 
-abstract class ComposedDockerfile extends Dockerfile
+use LogicException;
+
+abstract class CompositionDockerfile extends Dockerfile
 {
     /**
      * @return string[]
@@ -32,8 +34,8 @@ abstract class ComposedDockerfile extends Dockerfile
     /**
      * @return array
      */
-    public function getLayers(): array
+    protected function getLayers(): array
     {
-        throw new \LogicException("You should not define layers in Composed Dockerfiles, use getComposition instead.");
+        throw new LogicException("You should not define layers in Composed Dockerfiles, use getComposition instead.");
     }
 }

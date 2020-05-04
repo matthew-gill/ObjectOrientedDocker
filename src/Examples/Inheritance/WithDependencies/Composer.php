@@ -4,7 +4,7 @@ namespace MattGill\Examples\Inheritance\WithDependencies;
 
 class Composer extends Base
 {
-    public function getLayers(): array
+    protected function getLayers(): array
     {
         return [
             $this->add('./composer.json', '.'),

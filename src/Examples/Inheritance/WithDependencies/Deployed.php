@@ -4,7 +4,7 @@ namespace MattGill\Examples\Inheritance\WithDependencies;
 
 class Deployed extends Base
 {
-    public function getLayers(): array
+    protected function getLayers(): array
     {
         return [
             $this->copyFromStage(Composer::class, 'node_modules', 'node_modules'),
@@ -12,7 +12,7 @@ class Deployed extends Base
             $this->run('httpd -DFOREGROUND'),
         ];
     }
-    public function getDependentStages(): array
+    protected function getDependentStages(): array
     {
         return [
             Composer::class,

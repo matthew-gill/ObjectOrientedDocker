@@ -2,20 +2,20 @@
 
 namespace MattGill\Examples\Composition\Simple;
 
-use MattGill\ComposedDockerfile;
+use MattGill\CompositionDockerfile;
 
-class SimpleComposition extends ComposedDockerfile
+class SimpleComposition extends CompositionDockerfile
 {
     public function getComposition(): array
     {
         return [
-            PartA::class,
-            PartB::class,
-            PartC::class,
+            SimplePartA::class,
+            SimplePartB::class,
+            SimplePartC::class,
         ];
     }
 
-    public function getBaseImage(): string
+    protected function getBaseImage(): string
     {
         return 'busybox:latest';
     }

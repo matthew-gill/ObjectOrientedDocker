@@ -22,6 +22,13 @@ class Utils
         return str_replace('\\', '-', strtolower($className));
     }
 
+    /**
+     * Given a fully qualified classname, return just the class name.
+     *
+     * @param string $className
+     *
+     * @return string
+     */
     public static function getShortClassName(string $className): string
     {
         $pieces = explode('\\', $className);

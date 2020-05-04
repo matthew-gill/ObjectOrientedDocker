@@ -1,5 +1,8 @@
 # ObjectOrientedDocker 🐳
-Create Dockerfiles using PHP including Multistage. Allows for inheritance between other dockerfiles.
+Create Dockerfiles using PHP including Multistage.
+Supports inheritance and composition too.
+
+See the examples folder for ideas!
 
 # Use it
 ```
@@ -10,53 +13,59 @@ php app.php
 # Example:
 
 ```php
-class Main extends Dockerfile
+class Base extends Dockerfile
 {
-    /**
-     * @return string
-     */
-    public function getRootImage(): string
-    {
-        return 'bitnami/minideb:stretch';
-    }
-
-    public function configure(): void
-    {
-        $this->run('mkdir', '-p', '/app')
-            ->setComment("Set up the directories");
-        $this->workdir('/app');
-        $this->copyFromStage(Builder::class, '/go/server', '.');
-        $this->copy('page.html', '.');
-        $this->run('useradd', '-r', '-u', '1001', '-g', 'root', 'nonroot');
-        $this->run('chown', '-R', 'nonroot', '/app');
-        $this->user('nonroot');
-        $this->env('PORT', '8080');
-        $this->cmd('/app/server');
-    }
-
-    public function getDependentStages(): array
+    protected function getLayers(): array
     {
         return [
-            Builder::class,
+            $this->run(
+                'apt-get update --fix-missing',
+                'apt-get install default-mysql-client \
+                                 openssh-server \
+                                 unzip \
+                                 zip'
+            )->setMultiline(true)->setComment("Install required packages"),
+        ];
+    }
+
+    protected function getBaseImage(): string
+    {
+        return 'php:7-apache';
+    }
+
+}
+
+class Deployed extends Base
+{
+    protected function getLayers(): array
+    {
+        return [
+            $this->copyFromStage(Composer::class, 'node_modules', 'node_modules'),
+            $this->user('root'),
+            $this->run('httpd -DFOREGROUND'),
+        ];
+    }
+    protected function getDependentStages(): array
+    {
+        return [
+            Composer::class,
         ];
     }
 }
 
-class Builder extends Dockerfile
+class Composer extends Base
 {
-    /**
-     * @return string
-     */
-    public function getRootImage(): string
+    protected function getLayers(): array
     {
-        return 'bitnami/golang:1.13';
-    }
-
-    public function configure(): void
-    {
-        $this->run('go', 'get', 'github.com/urfave/negroni');
-        $this->copy('server.go', '/');
-        $this->run('go', 'build', '/server.go');
+        return [
+            $this->add('./composer.json', '.'),
+            $this->add('./composer.lock', '.'),
+            $this->copy('--from=composer:1.7', '/usr/bin/composer', '/usr/local/bin/composer'),
+            $this->run(
+                'composer install',
+                'composer clear-cache'
+            )->setMultiline(true),
+        ];
     }
 }
 ```
@@ -64,33 +73,34 @@ class Builder extends Dockerfile
 Then
 
 ```php
-use MattGill\Examples\Bitnami\Main;
-
 require __DIR__ . '/vendor/autoload.php';
 
-$example = new Main();
+$example = new Deployed();
 print_r($example->compile(true));
 ````
 
 Will output
 
 ```dockerfile
-FROM bitnami/golang:1.13 as mattgill-examples-bitnami-builder
-RUN go get github.com/urfave/negroni
-COPY server.go /
-RUN go build /server.go
+FROM php:7-apache AS mattgill-examples-inheritance-withdependencies-base
+# Install required packages
+RUN apt-get update --fix-missing && \ 
+    apt-get install default-mysql-client \
+                                 openssh-server \
+                                 unzip \
+                                 zip
 
-FROM bitnami/minideb:stretch as mattgill-examples-bitnami-main
-# Set up the directories
-RUN mkdir -p /app
-WORKDIR /app
-COPY --from=mattgill-examples-bitnami-builder /go/server .
-COPY page.html .
-RUN useradd -r -u 1001 -g root nonroot
-RUN chown -R nonroot /app
-USER nonroot
-ENV PORT 8080
-CMD /app/server
+FROM mattgill-examples-inheritance-withdependencies-base AS mattgill-examples-inheritance-withdependencies-composer
+ADD ./composer.json .
+ADD ./composer.lock .
+COPY --from=composer:1.7 /usr/bin/composer /usr/local/bin/composer
+RUN composer install && \ 
+    composer clear-cache
+
+FROM mattgill-examples-inheritance-withdependencies-base AS mattgill-examples-inheritance-withdependencies-deployed
+COPY --from=mattgill-examples-inheritance-withdependencies-composer node_modules node_modules
+USER root
+RUN httpd -DFOREGROUND
 ```
 
 

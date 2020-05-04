@@ -2,43 +2,179 @@
 
 namespace MattGill;
 
+use LogicException;
 use MattGill\Model\Layer;
-use MattGill\Model\LineageStage;
 use MattGill\Model\Noop;
+use Pustato\TopSort\Collection;
+use Pustato\TopSort\Contracts\Sortable;
+use Pustato\TopSort\Exceptions\InvalidArgumentException;
+use ReflectionClass;
+use ReflectionException;
 
-abstract class Dockerfile
+abstract class Dockerfile implements Sortable
 {
     /**
-     * @var Layer[]
-     */
-    protected $layers = [];
-
-    /**
-     * Creates a new Dockerfile instance.
+     * Return the compiled dockerfile for the definition provided.s
      *
-     * @param bool $initialise - should the layers be built automatically on construct?
+     * @param bool $withComments
+     *
+     * @return string
      */
-    final public function __construct(bool $initialise = true)
+    public function compile(bool $withComments = false): string
     {
-        if ( ! $initialise) {
-            return;
+        $layers = $this->compileStageLayers();
+
+        $compiled = '';
+
+        foreach ($layers as $layer) {
+            $compiled .= $layer->compile($withComments) . "\n";
         }
 
-        if ($this instanceof CompositionDockerfile) {
-            $this->from(($this->getRootImage()));
-        }
-
-        $this->loadLineageAndConfigure($this);
+        return trim($compiled);
     }
 
-    abstract public function configure(): void;
-
     /**
+     * Returns an array of all the layers that make up the components.
+     *
      * @return Layer[]
      */
-    public function getLayers(): array
+    protected function compileStageLayers(): array
     {
-        return $this->layers;
+        $topologicallySorted = $this->sortTopologically();
+
+        $layers = [];
+
+        foreach ($topologicallySorted as $dockerfile) {
+
+            // Optionally add the FROM layer.
+            if ($this->shouldAutomaticallyAddFromStage()) {
+                $layers[] = $dockerfile->getFromLayer();
+            }
+
+            // Add the layers for this dockerfile
+            $layers = array_merge($layers, $dockerfile->getLayers());
+            $layers[] = new Noop();
+        }
+
+        return $layers;
+    }
+
+    /**
+     * Given a class name, determine if it has dependent classes via the {@see Dockerfile::getDependentStages} method.
+     * If it does, use recursion to find their lineage and if they have any other dependant stages too.
+     *
+     * @param string $className
+     *
+     * @return array
+     * @throws ReflectionException
+     */
+    protected function getDependenciesForClass(string $className): array
+    {
+        $reflected = new ReflectionClass($className);
+        $getDependentStagesMethod = $reflected->getMethod('getDependentStages');
+
+        // If the class in question implements getDependentStages (i.e. it's not inherited), then there are no
+        // dependenciees.
+        if ($getDependentStagesMethod->class !== $className) {
+            return [];
+        }
+
+        // This class DOES implement getDependentStages directly.
+
+        /** @var Dockerfile $instanciated */
+        $instanciated = new $className();
+
+        $dependencies = [];
+
+        // For each dependency load the dependency's class lineage and it's dependency (recursively).
+        foreach ($instanciated->getDependentStages() as $dependency) {
+            /** @var Dockerfile $instanciatedDependency */
+            $dependencies = array_merge($dependencies, $this->getClassAncestry($dependency));
+            $dependencies = array_merge($dependencies, $this->getDependenciesForClass($dependency));
+        }
+
+        return $dependencies;
+    }
+
+    /**
+     * Move up this dockerfile's ancestry, returning an array of the classes it inherits from.
+     *
+     * @param string $context
+     *
+     * @return array
+     * @throws ReflectionException
+     */
+    protected function getClassAncestry(string $context): array
+    {
+        $hierarchy = [];
+
+        while ($context) {
+            $reflected = new ReflectionClass($context);
+
+            // We don't care about abstract classes.
+            if ($reflected->isAbstract()) {
+                break;
+            }
+
+            $hierarchy[] = $context;
+
+            $context = get_parent_class($context);
+        }
+
+        return $hierarchy;
+    }
+
+    /**
+     * Define the array of layers, in order. These are the dockerfile's instructions, e.g. RUN, COPY, ENTRYPOINT.
+     *
+     * @return Layer[]
+     */
+    abstract protected function getLayers(): array;
+
+    /**
+     * The image which this is built on top of, e.g. ubuntu.
+     *
+     * @return string
+     */
+    protected function getBaseImage(): string
+    {
+        $thisClass = get_class($this);
+        throw new LogicException(
+            "Please override the method getBaseImage in {$thisClass} to return your root image, e.g. 'ubuntu'"
+            . " OR override shouldIncludeFromInStage to return false."
+        );
+    }
+
+    /**
+     * Return a layer which specifies the FROM stage for the current dockerfile.
+     *
+     * @param bool $multistage
+     *
+     * @return Layer
+     * @throws ReflectionException
+     */
+    protected function getFromLayer(bool $multistage = true): Layer
+    {
+        $thisClass = get_class($this);
+        $parent = get_parent_class($thisClass);
+
+        /** @var Dockerfile&ReflectionClass $reflectedParent */
+        $reflectedParent = new ReflectionClass($parent);
+
+        $from = Utils::convertClassNameToStageName($parent);
+
+        if ($reflectedParent->isAbstract()) {
+            $from = $this->getBaseImage();
+        }
+
+        $as = Utils::convertClassNameToStageName($thisClass);
+
+        if ( ! $multistage) {
+            return $this->from($from);
+        }
+
+        return $this->from($from, "AS", $as);
+
     }
 
     /**
@@ -141,14 +277,26 @@ abstract class Dockerfile
     }
 
     /**
-     * @param string $class
+     * Adds a copy layer but copies content from an external dependency.
+     *
+     * @param string $dependencyClass
      * @param string ...$argument
      *
      * @return Layer
      */
-    protected function copyFromStage(string $class, string ...$argument): Layer
+    protected function copyFromStage(string $dependencyClass, string ...$argument): Layer
     {
-        return $this->copy('--from=' . Utils::convertClassNameToStageName($class), ...$argument);
+        if ( ! in_array($dependencyClass, $this->getDependentStages(), true)) {
+
+            $niceNameMissing = Utils::getShortClassName($dependencyClass);
+            $niceNameThis = Utils::getShortClassName(get_class($this));
+
+            throw new LogicException(
+                "To copy from a stage please add {$niceNameMissing}::class to the getDependentStages method in {$niceNameThis}::class"
+            );
+        }
+
+        return $this->copy('--from=' . Utils::convertClassNameToStageName($dependencyClass), ...$argument);
     }
 
     /**
@@ -268,39 +416,12 @@ abstract class Dockerfile
      */
     private function addInstruction(string $instruction, string ...$arguments): Layer
     {
-        $layer = new Layer($instruction, ...$arguments);
-        $this->layers[] = $layer;
-
-        return $layer;
+        return new Layer($instruction, ...$arguments);
     }
 
     /**
-     * @param bool $withComments
-     *
-     * @return string
-     */
-    public function compile(bool $withComments = false): string
-    {
-        $compiled = "";
-
-        foreach ($this->layers as $layer) {
-            $compiled .= $layer->compile($withComments) . "\n";
-        }
-
-        return trim($compiled);
-    }
-
-    public function launch(): void
-    {
-        // Probably something VERY hacky here.
-    }
-
-    /**
-     * If your dockerfile class has a FROM or COPY stage which is
-     * not already part of your dockerfile's ancestry, return the class
-     * here. If the class is not present and missing from the ancestry
-     * it is assumed that the container is public and available in your
-     * docker context, e.g. ubuntu or busybox.
+     * An array of dockerfile classnames on which this dockerfile depends on. Allows them to be used in a
+     * {@see Dockerfile::copyFromStage()} call.
      *
      * @return array
      */
@@ -310,93 +431,86 @@ abstract class Dockerfile
     }
 
     /**
-     * The root image which the container is built on, e.g. 'ubuntu' or 'busybox'
+     * Return class hierarchy and external dependencies linked to the specified class name.
+     *
+     * @param string $className
+     *
+     * @return array
+     */
+    private function getInvolvedClasses(string $className): array
+    {
+        $hierarchy = $this->getClassAncestry($className);
+
+        $involvedClasses = [];
+
+        foreach ($hierarchy as $class) {
+            $involvedClasses[] = $class;
+            $involvedClasses = array_merge($involvedClasses, $this->getDependenciesForClass($class));
+        }
+
+        return array_unique($involvedClasses);
+    }
+
+    /**
+     * @return bool
+     */
+    protected function shouldAutomaticallyAddFromStage(): bool
+    {
+        return true;
+    }
+
+
+    /**
+     * Used by {@see Pustato} to define the class ID (in this case, just the class name). Used to topologically sort.
      *
      * @return string
      */
-    abstract public function getRootImage(): string;
-
-    /**
-     * @param Dockerfile $dockerfile
-     * @param array      $priorLineage
-     */
-    private function loadLineageAndConfigure(Dockerfile $dockerfile, array $priorLineage = []): void
+    public function getId(): string
     {
-        $lineage = [];
-
-        // If this dockerfile has dependencies which aren't in the inheritance structure, we construct them manually and
-        // load THEIR lineage too. This triggers recursion in case a dependant class ALSO has dependencies.
-        $this->loadDependencies($dockerfile->getDependentStages(), $priorLineage);
-
-        // Because get_parent_class returns the class name as a string. We convert the current dockerfile to it's class
-        // string too so we can use it in the loop.
-        $currentClass = get_class($dockerfile);
-
-        // Traverse up the inheritance layers for the dockerfile
-        while ($parent = get_parent_class($currentClass)) {
-
-            if ($currentClass === ComponentDockerfile::class || $currentClass === CompositionDockerfile::class) {
-                break;
-            }
-
-            $lineageStage = new LineageStage(new $currentClass(false));
-
-            // We use the stagename to index the array because dependencies may bring in the same stage more than once
-            // and we only ever want to build the stage once.
-            $lineage[$lineageStage->getStageName()] = $lineageStage;
-
-            $currentClass = $parent;
-        }
-
-        // As the above parent lineage starts from child -> parent -> grandparent, this means that if we DONT reverse
-        // the order a child container will try to be built before it's parent - and the child class will have
-        // dependencies on the parents, so the parents need to be built first: grandparent -> parent -> child.
-        $lineage = array_reverse($lineage);
-
-        // Now the lineage is in order, we append it to the existing lineage
-        $lineage = array_merge($priorLineage, $lineage);
-
-        // Composed dockerfiles may have dependenciess which come after it, so load those up too.
-        if ($dockerfile instanceof CompositionDockerfile) {
-            foreach ($dockerfile->getDependentStagesAfter() as $dependency) {
-                $lineageStage = new LineageStage(new $dependency(false));
-                $lineage[$lineageStage->getStageName()] = $lineageStage;
-
-            }
-        }
-
-        // Now we have our array of dependencies, we can compile everything.
-        $this->buildMultistageLayers($lineage);
+        return static::class;
     }
 
     /**
-     * @param LineageStage[] $lineageStages
+     * Used by {@see Pustato} to perform topological sort on this dockerfile's dependencies.
+     *
+     * @return array
      */
-    private function buildMultistageLayers(array $lineageStages): void
+    public function getDependenciesIds(): array
     {
-        foreach ($lineageStages as $lineageStage) {
+        $className = get_class($this);
 
-            if ( ! $this instanceof CompositionDockerfile) {
-                $this->from("{$lineageStage->getFrom()} as {$lineageStage->getStageName()}");
+        // Return everything except the instance of this class.
+        return array_filter(
+            $this->getInvolvedClasses($className),
+            static function (string $class) use ($className) {
+                return $class !== $className;
             }
-            /** @noinspection SlowArrayOperationsInLoopInspection */
-            $this->layers = array_merge($this->layers, $lineageStage->getLayers());
-
-            $this->layers[] = new Noop();
-        }
+        );
     }
 
     /**
-     * @param array $dependencies
-     * @param array $existingLineage
+     * Uses a topological sort to get the related dockerfile classes in dependency order,
+     *
+     * @return Dockerfile[]
+     * @throws InvalidArgumentException
      */
-    private function loadDependencies(array $dependencies, array $existingLineage): void
+    private function sortTopologically(): array
     {
-        foreach ($dependencies as $dependency) {
-            /** @var Dockerfile $instanciated */
-            $instanciated = new $dependency(false);
-            $this->loadLineageAndConfigure($instanciated, $existingLineage);
-        }
-    }
+        // Get lineage and dependent classes for this dockerfile.
+        $classes = $this->getInvolvedClasses(get_class($this));
 
+        $instanciated = [];
+
+        // Instanciate each one.
+        foreach ($classes as $class) {
+            $instanciated[] = new $class();
+        }
+
+        /** @noinspection PhpUnhandledExceptionInspection */
+        $assetsCollection = new Collection($instanciated);
+
+        // This order defines the required order in which each stage should be created so as to ensure all dependencies
+        // are met.
+        return $assetsCollection->getSorted();
+    }
 }

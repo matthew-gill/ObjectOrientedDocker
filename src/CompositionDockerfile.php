@@ -2,10 +2,40 @@
 
 namespace MattGill;
 
+use LogicException;
+
 abstract class CompositionDockerfile extends Dockerfile
 {
-    public function getDependentStagesAfter(): array
+    /**
+     * @return string[]
+     */
+    abstract public function getComposition(): array;
+
+    /**
+     * @param bool $withComments
+     *
+     * @return string
+     */
+    public function compile(bool $withComments = false): string
     {
-        return [];
+        $compiled = '';
+
+        $compiled .= $this->getFromLayer(false)->compile($withComments) . "\n";
+
+        foreach ($this->getComposition() as $dockerfileClass) {
+            /** @var Dockerfile $dockerfile */
+            $dockerfile = new $dockerfileClass();
+            $compiled .= $dockerfile->compile($withComments) . "\n";
+        }
+
+        return trim($compiled);
+    }
+
+    /**
+     * @return array
+     */
+    protected function getLayers(): array
+    {
+        throw new LogicException("You should not define layers in Composed Dockerfiles, use getComposition instead.");
     }
 }

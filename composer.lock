@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7794af9ae25e47de683cd4d89f267966",
+    "content-hash": "0b1594ee511bc25d1dc37e782af3601f",
     "packages": [
         {
             "name": "doctrine/instantiator",
@@ -758,6 +758,46 @@
                 "xunit"
             ],
             "time": "2020-01-08T08:45:45+00:00"
+        },
+        {
+            "name": "pustato/topsort",
+            "version": "v1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/pustato/topsort.git",
+                "reference": "1256deb7f3e0d00a3cb582bb6fa48e67a74a283a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/pustato/topsort/zipball/1256deb7f3e0d00a3cb582bb6fa48e67a74a283a",
+                "reference": "1256deb7f3e0d00a3cb582bb6fa48e67a74a283a",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "^0.9.9",
+                "phpunit/phpunit": "^6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Pustato\\TopSort\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Alexander Atamanov",
+                    "email": "pustato.aas@gmail.com"
+                }
+            ],
+            "description": "Topological sorting implementation in PHP",
+            "time": "2017-09-08T13:54:11+00:00"
         },
         {
             "name": "sebastian/code-unit-reverse-lookup",
